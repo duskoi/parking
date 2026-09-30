@@ -1,1 +1,110 @@
-<!doctype html><title>Parking</title>
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#081c22" />
+    <meta
+      name="description"
+      content="Acceso simulado para abrir el parking mediante un PIN de cuatro cifras."
+    />
+    <title>Parking</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main class="app-shell" aria-labelledby="page-title">
+      <div class="ambient ambient-one" aria-hidden="true"></div>
+      <div class="ambient ambient-two" aria-hidden="true"></div>
+
+      <section class="access-card" aria-describedby="page-description">
+        <div class="wordmark" aria-hidden="true">
+          <span class="wordmark-mark"></span>
+          PARKING
+        </div>
+
+        <div class="main-content">
+          <p class="eyebrow">Acceso privado</p>
+          <h1 id="page-title">Entrada al parking</h1>
+          <p id="page-description" class="intro">
+            Identifícate para solicitar la apertura.
+          </p>
+
+          <button class="open-button" id="open-dialog" type="button">
+            <span class="gate-icon" aria-hidden="true">
+              <svg viewBox="0 0 64 64" focusable="false">
+                <path d="M12 53V18.5A7.5 7.5 0 0 1 19.5 11h25a7.5 7.5 0 0 1 7.5 7.5V53" />
+                <path d="M17 53V23h30v30M17 31h30M17 39h30M17 47h30" />
+              </svg>
+            </span>
+            <span>Abrir parking</span>
+          </button>
+
+          <p class="simulation-note">
+            <span aria-hidden="true"></span>
+            Demostración · no acciona una puerta real
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <dialog class="pin-dialog" id="pin-dialog" aria-labelledby="dialog-title">
+      <form class="dialog-panel" id="pin-form" novalidate>
+        <button class="close-button" id="close-dialog" type="button" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="m6 6 12 12M18 6 6 18" />
+          </svg>
+        </button>
+
+        <div class="dialog-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <rect x="5" y="10" width="14" height="11" rx="3" />
+            <path d="M8 10V7a4 4 0 0 1 8 0v3M12 14.5v2" />
+          </svg>
+        </div>
+
+        <h2 id="dialog-title">Introduce tu PIN</h2>
+        <p class="dialog-copy">Escribe las cuatro cifras para continuar.</p>
+
+        <label class="sr-only" for="pin-input">PIN de cuatro cifras</label>
+        <div class="pin-field" id="pin-field">
+          <input
+            id="pin-input"
+            name="pin"
+            type="password"
+            inputmode="numeric"
+            pattern="[0-9]{4}"
+            maxlength="4"
+            autocomplete="one-time-code"
+            aria-describedby="pin-help pin-error"
+            required
+          />
+          <span class="pin-slots" aria-hidden="true">
+            <i></i><i></i><i></i><i></i>
+          </span>
+        </div>
+        <p id="pin-help" class="pin-help">Solo números</p>
+        <p id="pin-error" class="error-message" role="alert" aria-live="polite"></p>
+
+        <button class="confirm-button" id="confirm-pin" type="submit" disabled>
+          Confirmar apertura
+        </button>
+      </form>
+    </dialog>
+
+    <dialog class="success-dialog" id="success-dialog" aria-labelledby="success-title">
+      <div class="success-panel">
+        <div class="success-ring" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path d="m7 12 3.2 3.2L17.5 8" />
+          </svg>
+        </div>
+        <p class="eyebrow success-eyebrow">Solicitud completada</p>
+        <h2 id="success-title">Parking abierto</h2>
+        <p>La apertura se ha simulado correctamente.</p>
+        <button class="done-button" id="done-button" type="button">Cerrar</button>
+      </div>
+    </dialog>
+  </body>
+</html>
