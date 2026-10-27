@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prueba parking</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#173229;background:#edf2ed}*{box-sizing:border-box}body{margin:0;min-height:100svh;display:grid;place-items:center;padding:28px 18px}main{width:100%;max-width:470px}header{display:flex;align-items:center;justify-content:space-between;margin-bottom:38px}.brand{font-size:14px;font-weight:750;letter-spacing:.14em}.badge{font-size:12px;background:white;padding:8px 12px;border-radius:30px}h1{font-size:clamp(36px,8vw,46px);letter-spacing:-.05em;margin:0 0 10px}header span:first-child{background:#173229;color:white;border-radius:9px;padding:8px 12px;margin-right:10px}p{line-height:1.6;color:#60736a}.panel{background:white;border:1px solid #dce5dd;border-radius:26px;padding:26px;margin-top:26px;box-shadow:0 16px 50px #18352909}button,input{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.45}.open{width:100%;display:flex;flex-direction:column;align-items:center;gap:18px;border:0;background:#d7edb3;color:#173229;border-radius:18px;padding:29px 15px;font-weight:750;font-size:20px}.open svg{width:78px;height:78px}.close{width:100%;background:white;color:#173229;border:1px solid #c9d5cc;border-radius:14px;padding:16px;margin-top:14px;font-weight:650}button:not(:disabled):hover{filter:brightness(.96)}button:focus-visible,summary:focus-visible,input:focus-visible{outline:3px solid #538833;outline-offset:4px}#message{font-size:14px;min-height:46px;margin-bottom:0}details{margin-top:22px;font-size:14px}summary{cursor:pointer;font-weight:650}label{display:block;margin:16px 0 6px}input{width:100%;border:1px solid #bccdc0;border-radius:9px;padding:11px;background:white}#connect{margin-top:18px;width:100%;border:0;border-radius:10px;padding:12px;background:#173229;color:white}.note{font-size:12px}footer{text-align:center;font-size:12px;color:#687d70;margin-top:24px}
+</style>
+</head>
+<body>
+<main>
+<header><div class="brand"><span>P</span>PARKING</div><span class="badge" id="connection" role="status">Sin conexión</span></header>
+<h1>Prueba parking.</h1>
+<p>Control de acceso a tu parking.</p>
+<section class="panel" aria-label="Control de la puerta">
+<button class="open" id="open" disabled>
+<svg viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="4" aria-hidden="true"><path d="M17 80h66M25 80V34h10v46M65 80V34h10v46M23 34h54M35 34l40-20"/><path d="m43 28 5 8m8-14 5 8m8-14 5 8"/><path d="M49 76V48m-8 9 8-9 8 9" stroke-linecap="round" stroke-linejoin="round"/></svg>
+Pulsar para abrir
+</button>
+<button class="close" id="close" disabled>Cerrar puerta</button>
+<p id="message" role="status" aria-live="polite">Conecta con MQTT para activar los botones.</p>
+</section>
+<details id="settings" open>
+<summary>Conexión MQTT</summary>
+<form id="form">
+<label for="url">Dirección WebSocket segura del VPS</label>
+<input id="url" type="url" placeholder="wss://mqtt.tu-dominio.com/mqtt" required autocomplete="off">
+<label for="username">Usuario MQTT</label><input id="username" required autocomplete="off">
+<label for="password">Contraseña MQTT</label><input id="password" type="password" required autocomplete="off">
+<label for="topic">Tema de las órdenes</label><input id="topic" value="casa/puerta/orden" required>
+<button id="connect" type="submit">Conectar</button>
+</form>
+<p class="note">Introduce un usuario MQTT autorizado para este tema. Estos datos no se guardan en esta página. Tu VPS necesita WebSocket seguro configurado; el acceso SSH es independiente.</p>
+</details>
+<footer>Una orden enviada no confirma el movimiento de la puerta.</footer>
+</main>
+<script src="https://unpkg.com/mqtt@5.10.4/dist/mqtt.min.js"></script>
+<script>
+const el = id => document.getElementById(id);
+let client = null;
+let commandTopic = '';
+function connected(value) {
+  el('open').disabled = el('close').disabled = !value;
+  el('connection').textContent = value ? 'MQTT conectado' : 'Sin conexión';
+}
+el('form').addEventListener('submit', event => {
+  event.preventDefault();
+  const url = el('url').value.trim();
+  const topic = el('topic').value.trim();
+  if (!url.startsWith('wss://')) {el('message').textContent = 'Utiliza una dirección wss:// con un certificado válido.'; return;}
+  if (!topic || /[+#\u0000]/.test(topic)) {el('message').textContent = 'Introduce un tema concreto, sin + ni #.'; return;}
+  if (!window.mqtt) {el('message').textContent = 'No se pudo cargar MQTT. Comprueba Internet y recarga la página.'; return;}
+  if (client) {client.removeAllListeners(); client.end(true);}
+  connected(false);
+  commandTopic = topic;
+  el('message').textContent = 'Conectando con el VPS…';
+  client = mqtt.connect(url, {
+    username: el('username').value,
+    password: el('password').value,
+    clean: true, reconnectPeriod: 0, connectTimeout: 10000,
+    queueQoSZero: false
+  });
+  client.on('connect', () => {connected(true); el('message').textContent = 'Listo para enviar una orden.'; el('password').value = ''; el('settings').open = false;});
+  client.on('error', () => {connected(false); el('message').textContent = 'Error de conexión. Revisa dirección, usuario y permisos MQTT.';});
+  client.on('close', () => {connected(false); el('message').textContent = 'Conexión cerrada. Abre Conexión MQTT para volver a conectar.';});
+});
+function send(command) {
+  if (!client || !client.connected) {connected(false); return;}
+  client.publish(commandTopic, command, {qos: 0, retain: false}, error => {
+    el('message').textContent = error ? 'No se pudo enviar la orden.' : `Orden enviada: ${command}. Pendiente de confirmación de la puerta.`;
+  });
+}
+el('open').addEventListener('click', () => send('abrir'));
+el('close').addEventListener('click', () => send('cerrar'));
+</script>
+</body>
+</html>
+
