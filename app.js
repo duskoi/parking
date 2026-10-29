@@ -37,7 +37,7 @@ const publishOpening = async () => {
     client.on("error", finish);
     client.on("close", () => { if (!settled) finish(new Error("MQTT disconnected")); });
     client.once("connect", () => {
-      client.publish("hola/prueba", "abrir", { qos: 1, retain: false }, finish);
+      client.publish("prueba/hola", "abrir", { qos: 1, retain: false }, finish);
     });
   });
 };
