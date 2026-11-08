@@ -32,7 +32,8 @@ const renderControls = () => {
   refreshSlots();
 };
 
-const renderPresence = (online, label) => {
+const renderPresence = (online) => {
+  const label = online ? "Online" : "Offline";
   const value = String(online);
   if (espStatus.dataset.online !== value) espStatus.dataset.online = value;
   if (espStatusText.textContent !== label) espStatusText.textContent = label;
@@ -50,7 +51,7 @@ const startPresence = async () => {
     url = new URL(endpoint);
     if (url.protocol !== "https:") throw new Error("Se necesita una URL HTTPS");
   } catch {
-    renderPresence(false, "Presencia HTTPS pendiente de configurar");
+    renderPresence(false);
     return;
   }
 
@@ -63,9 +64,9 @@ const startPresence = async () => {
       if (!response.ok) throw new Error("Servicio HTTPS no disponible");
       const { online } = await response.json();
       if (typeof online !== "boolean") throw new Error("Respuesta de presencia inválida");
-      renderPresence(online, online ? "ESP32 en línea" : "ESP32 sin conexión");
+      renderPresence(online);
     } catch {
-      renderPresence(false, "Estado de la ESP32 no disponible");
+      renderPresence(false);
     } finally {
       setTimeout(checkPresence, PRESENCIA_INTERVALO_MS);
     }
