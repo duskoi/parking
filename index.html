@@ -10,8 +10,8 @@
     />
     <title>Parking</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <link rel="stylesheet" href="styles.css?v=20261108-esp32" />
-    <script src="app.js?v=20261108-online-offline" defer></script>
+    <link rel="stylesheet" href="styles.css?v=20261108-gpio2" />
+    <script src="app.js?v=20261108-gpio2" defer></script>
   </head>
   <body>
     <main class="app-shell" aria-labelledby="page-title">
@@ -40,11 +40,6 @@
             </span>
             <span>Abrir parking</span>
           </button>
-
-          <p class="esp-status" id="esp-status" data-online="false" role="status">
-            <span class="esp-led" aria-hidden="true"></span>
-            <span id="esp-status-text">Offline</span>
-          </p>
         </div>
       </section>
     </main>
@@ -88,7 +83,7 @@
         <p id="pin-error" class="error-message" role="alert" aria-live="polite"></p>
 
         <button class="confirm-button" id="confirm-pin" type="submit" disabled>
-          Confirmar apertura
+          Confirmar orden
         </button>
       </form>
     </dialog>
@@ -102,7 +97,7 @@
         </div>
         <p class="eyebrow success-eyebrow">Confirmación de la ESP32</p>
         <h2 id="success-title">Orden ejecutada</h2>
-        <p>La ESP32 completó el pulso de un segundo en GPIO 23.</p>
+        <p id="success-message"></p>
         <button class="done-button" id="done-button" type="button">Cerrar</button>
       </div>
     </dialog>

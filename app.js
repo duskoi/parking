@@ -16,8 +16,6 @@ const loadMqtt = () => {
 
 const TOPIC_ORDEN = "prueba/hola";
 const TOPIC_CONFIRMACION = "prueba/hola/confirmacion";
-const PRESENCIA_INTERVALO_MS = 5000;
-const PRESENCIA_TIMEOUT_MS = 4000;
 const CONFIRMACION_MS = 8000;
 
 let client;
@@ -30,48 +28,6 @@ const renderControls = () => {
   openButton.disabled = !mqttReady() || pending !== null;
   openButton.title = mqttReady() ? "" : "Esperando conexión con EMQX";
   refreshSlots();
-};
-
-const renderPresence = (online) => {
-  const label = online ? "Online" : "Offline";
-  const value = String(online);
-  if (espStatus.dataset.online !== value) espStatus.dataset.online = value;
-  if (espStatusText.textContent !== label) espStatusText.textContent = label;
-};
-
-const startPresence = async () => {
-  let url;
-  try {
-    const config = await fetch("presencia/config.json", {
-      cache: "no-store",
-      signal: AbortSignal.timeout(PRESENCIA_TIMEOUT_MS)
-    });
-    if (!config.ok) throw new Error("No se pudo cargar la configuración");
-    const { endpoint } = await config.json();
-    url = new URL(endpoint);
-    if (url.protocol !== "https:") throw new Error("Se necesita una URL HTTPS");
-  } catch {
-    renderPresence(false);
-    return;
-  }
-
-  const checkPresence = async () => {
-    try {
-      const response = await fetch(url, {
-        cache: "no-store",
-        signal: AbortSignal.timeout(PRESENCIA_TIMEOUT_MS)
-      });
-      if (!response.ok) throw new Error("Servicio HTTPS no disponible");
-      const { online } = await response.json();
-      if (typeof online !== "boolean") throw new Error("Respuesta de presencia inválida");
-      renderPresence(online);
-    } catch {
-      renderPresence(false);
-    } finally {
-      setTimeout(checkPresence, PRESENCIA_INTERVALO_MS);
-    }
-  };
-  await checkPresence();
 };
 
 const startMqtt = async () => {
@@ -115,7 +71,7 @@ const startMqtt = async () => {
   }
 };
 
-const publishOpening = () => new Promise((resolve, reject) => {
+const publishOrder = (command) => new Promise((resolve, reject) => {
   if (!mqttReady()) {
     reject(new Error("La web no está conectada a EMQX."));
     return;
@@ -131,11 +87,11 @@ const publishOpening = () => new Promise((resolve, reject) => {
     else resolve();
   };
   const timer = setTimeout(() => finish(new Error(
-    "La ESP32 no confirmó la orden. Comprueba la puerta antes de reintentar."
+    "La ESP32 no confirmó la orden. Comprueba el resultado antes de reintentar."
   )), CONFIRMACION_MS);
   pending = { id, finish };
   renderControls();
-  client.publish(TOPIC_ORDEN, "abrir:" + id + ":" + timestamp, { qos: 0, retain: false }, (error) => {
+  client.publish(TOPIC_ORDEN, command + ":" + id + ":" + timestamp, { qos: 0, retain: false }, (error) => {
     if (error) finish(new Error("No se pudo enviar la orden."));
   });
 });
@@ -151,8 +107,7 @@ const pinField = document.querySelector("#pin-field");
 const confirmButton = document.querySelector("#confirm-pin");
 const errorMessage = document.querySelector("#pin-error");
 const slots = [...document.querySelectorAll(".pin-slots i")];
-const espStatus = document.querySelector("#esp-status");
-const espStatusText = document.querySelector("#esp-status-text");
+const successMessage = document.querySelector("#success-message");
 
 const clearEntry = () => {
   pinInput.value = "";
@@ -211,13 +166,16 @@ pinForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (pinInput.value.length !== 4 || pending || !mqttReady()) return;
 
-  if (isValidEntry(pinInput.value)) {
+  const command = pinInput.value === "2222" ? "gpio2" : isValidEntry(pinInput.value) ? "abrir" : null;
+  if (command) {
     confirmButton.disabled = true;
     pinInput.disabled = true;
     closeButton.disabled = true;
     confirmButton.textContent = "Esperando confirmación…";
     try {
-      await publishOpening();
+      await publishOrder(command);
+      const gpio = command === "gpio2" ? 2 : 23;
+      successMessage.textContent = "La ESP32 completó el pulso de un segundo en GPIO " + gpio + ".";
       pinDialog.close();
       successDialog.showModal();
     } catch (error) {
@@ -225,7 +183,7 @@ pinForm.addEventListener("submit", async (event) => {
     } finally {
       pinInput.disabled = false;
       closeButton.disabled = false;
-      confirmButton.textContent = "Confirmar apertura";
+      confirmButton.textContent = "Confirmar orden";
       refreshSlots();
     }
     return;
@@ -245,4 +203,3 @@ successDialog.addEventListener("click", (event) => {
 
 renderControls();
 startMqtt();
-startPresence();
