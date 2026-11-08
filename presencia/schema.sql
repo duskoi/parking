@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS presence (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  last_seen INTEGER NOT NULL
+);
