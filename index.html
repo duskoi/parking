@@ -6,12 +6,12 @@
     <meta name="theme-color" content="#081c22" />
     <meta
       name="description"
-      content="Acceso simulado para abrir el parking mediante un PIN de cuatro cifras."
+      content="Solicitud de apertura del parking mediante un PIN de cuatro cifras."
     />
     <title>Parking</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <link rel="stylesheet" href="styles.css" />
-    <script src="app.js?v=20261029-2" defer></script>
+    <link rel="stylesheet" href="styles.css?v=20261108-esp32" />
+    <script src="app.js?v=20261108-esp32" defer></script>
   </head>
   <body>
     <main class="app-shell" aria-labelledby="page-title">
@@ -31,7 +31,7 @@
             Identifícate para solicitar la apertura.
           </p>
 
-          <button class="open-button" id="open-dialog" type="button">
+          <button class="open-button" id="open-dialog" type="button" disabled>
             <span class="gate-icon" aria-hidden="true">
               <svg viewBox="0 0 64 64" focusable="false">
                 <path d="M12 53V18.5A7.5 7.5 0 0 1 19.5 11h25a7.5 7.5 0 0 1 7.5 7.5V53" />
@@ -41,9 +41,9 @@
             <span>Abrir parking</span>
           </button>
 
-          <p class="simulation-note">
-            <span aria-hidden="true"></span>
-            Demostración · no acciona una puerta real
+          <p class="esp-status" id="esp-status" data-online="false" role="status">
+            <span class="esp-led" aria-hidden="true"></span>
+            <span id="esp-status-text">Esperando señal de la ESP32…</span>
           </p>
         </div>
       </section>
@@ -100,9 +100,9 @@
             <path d="m7 12 3.2 3.2L17.5 8" />
           </svg>
         </div>
-        <p class="eyebrow success-eyebrow">Solicitud completada</p>
-        <h2 id="success-title">Parking abierto</h2>
-        <p>La apertura se ha simulado correctamente.</p>
+        <p class="eyebrow success-eyebrow">Confirmación de la ESP32</p>
+        <h2 id="success-title">Orden ejecutada</h2>
+        <p>La ESP32 completó el pulso de un segundo en GPIO 23.</p>
         <button class="done-button" id="done-button" type="button">Cerrar</button>
       </div>
     </dialog>

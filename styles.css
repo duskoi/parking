@@ -210,7 +210,7 @@ h1 {
   stroke-width: 2.4;
 }
 
-.simulation-note {
+.esp-status {
   display: flex;
   align-items: center;
   gap: 0.55rem;
@@ -219,12 +219,22 @@ h1 {
   font-size: 0.78rem;
 }
 
-.simulation-note span {
-  width: 0.45rem;
-  height: 0.45rem;
+.esp-status .esp-led {
+  width: 0.55rem;
+  height: 0.55rem;
+  flex: 0 0 auto;
   border-radius: 50%;
+  background: #ff7b78;
+}
+
+.esp-status[data-online="true"] .esp-led {
   background: var(--mint);
   box-shadow: 0 0 0.7rem var(--mint);
+}
+
+.open-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 dialog {
@@ -525,7 +535,7 @@ dialog[open] {
   }
 
   .intro,
-  .simulation-note {
+  .esp-status {
     margin-bottom: 0;
   }
 }
