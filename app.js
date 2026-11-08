@@ -15,26 +15,62 @@ const loadMqtt = () => {
 };
 
 const TOPIC_ORDEN = "prueba/hola";
-const TOPIC_PRESENCIA = "prueba/hola/presencia";
 const TOPIC_CONFIRMACION = "prueba/hola/confirmacion";
-const PRESENCIA_MS = 10000;
+const PRESENCIA_INTERVALO_MS = 5000;
+const PRESENCIA_TIMEOUT_MS = 4000;
 const CONFIRMACION_MS = 8000;
 
 let client;
 let subscribed = false;
-let lastHeartbeat = null;
 let pending = null;
 
-const espOnline = () => client?.connected && subscribed &&
-  lastHeartbeat !== null && performance.now() - lastHeartbeat < PRESENCIA_MS;
+const mqttReady = () => client?.connected && subscribed;
 
-const renderStatus = (offlineLabel = "ESP32 sin conexión") => {
-  const online = Boolean(espOnline());
-  espStatus.dataset.online = String(online);
-  const label = online ? "ESP32 en línea" : offlineLabel;
-  if (espStatusText.textContent !== label) espStatusText.textContent = label;
-  openButton.disabled = !online || pending !== null;
+const renderControls = () => {
+  openButton.disabled = !mqttReady() || pending !== null;
+  openButton.title = mqttReady() ? "" : "Esperando conexión con EMQX";
   refreshSlots();
+};
+
+const renderPresence = (online, label) => {
+  const value = String(online);
+  if (espStatus.dataset.online !== value) espStatus.dataset.online = value;
+  if (espStatusText.textContent !== label) espStatusText.textContent = label;
+};
+
+const startPresence = async () => {
+  let url;
+  try {
+    const config = await fetch("presencia/config.json", {
+      cache: "no-store",
+      signal: AbortSignal.timeout(PRESENCIA_TIMEOUT_MS)
+    });
+    if (!config.ok) throw new Error("No se pudo cargar la configuración");
+    const { endpoint } = await config.json();
+    url = new URL(endpoint);
+    if (url.protocol !== "https:") throw new Error("Se necesita una URL HTTPS");
+  } catch {
+    renderPresence(false, "Presencia HTTPS pendiente de configurar");
+    return;
+  }
+
+  const checkPresence = async () => {
+    try {
+      const response = await fetch(url, {
+        cache: "no-store",
+        signal: AbortSignal.timeout(PRESENCIA_TIMEOUT_MS)
+      });
+      if (!response.ok) throw new Error("Servicio HTTPS no disponible");
+      const { online } = await response.json();
+      if (typeof online !== "boolean") throw new Error("Respuesta de presencia inválida");
+      renderPresence(online, online ? "ESP32 en línea" : "ESP32 sin conexión");
+    } catch {
+      renderPresence(false, "Estado de la ESP32 no disponible");
+    } finally {
+      setTimeout(checkPresence, PRESENCIA_INTERVALO_MS);
+    }
+  };
+  await checkPresence();
 };
 
 const startMqtt = async () => {
@@ -53,41 +89,34 @@ const startMqtt = async () => {
 
     client.on("connect", () => {
       subscribed = false;
-      lastHeartbeat = null;
-      renderStatus();
-      client.subscribe([TOPIC_PRESENCIA, TOPIC_CONFIRMACION], { qos: 0 }, (error, topics) => {
+      renderControls();
+      client.subscribe(TOPIC_CONFIRMACION, { qos: 0 }, (error, topics) => {
         if (!client.connected) return;
-        subscribed = !error && topics?.length === 2 && topics.every(({ qos }) => qos <= 2);
-        renderStatus(subscribed ? "Esperando señal de la ESP32…" : "Sin acceso al estado de la ESP32");
+        subscribed = !error && topics?.length === 1 && topics[0].qos === 0;
+        renderControls();
       });
     });
 
     client.on("message", (topic, data, packet) => {
-      const message = data.toString();
-      if (topic === TOPIC_PRESENCIA) {
-        if (message === "offline") lastHeartbeat = null;
-        else if (message === "online" && !packet.retain) lastHeartbeat = performance.now();
-        renderStatus();
-      } else if (topic === TOPIC_CONFIRMACION && !packet.retain && pending?.id === message) {
+      if (topic === TOPIC_CONFIRMACION && !packet.retain && pending?.id === data.toString()) {
         pending.finish();
       }
     });
 
     client.on("close", () => {
       subscribed = false;
-      lastHeartbeat = null;
-      renderStatus("Web desconectada de EMQX");
+      renderControls();
     });
-    client.on("error", () => renderStatus("Error de conexión con EMQX"));
+    client.on("error", renderControls);
   } catch {
-    renderStatus("No se pudo conectar con EMQX");
+    renderControls();
     setTimeout(startMqtt, 10000);
   }
 };
 
 const publishOpening = () => new Promise((resolve, reject) => {
-  if (!espOnline()) {
-    reject(new Error("ESP32 sin conexión."));
+  if (!mqttReady()) {
+    reject(new Error("La web no está conectada a EMQX."));
     return;
   }
   const id = crypto.randomUUID().replaceAll("-", "");
@@ -96,7 +125,7 @@ const publishOpening = () => new Promise((resolve, reject) => {
     if (pending?.id !== id) return;
     clearTimeout(timer);
     pending = null;
-    renderStatus();
+    renderControls();
     if (error) reject(error);
     else resolve();
   };
@@ -104,7 +133,7 @@ const publishOpening = () => new Promise((resolve, reject) => {
     "La ESP32 no confirmó la orden. Comprueba la puerta antes de reintentar."
   )), CONFIRMACION_MS);
   pending = { id, finish };
-  renderStatus();
+  renderControls();
   client.publish(TOPIC_ORDEN, "abrir:" + id + ":" + timestamp, { qos: 0, retain: false }, (error) => {
     if (error) finish(new Error("No se pudo enviar la orden."));
   });
@@ -138,7 +167,7 @@ const refreshSlots = () => {
     slot.classList.toggle("filled", index < length);
     slot.classList.toggle("active", index === length && length < slots.length);
   });
-  confirmButton.disabled = length !== 4 || !espOnline() || pending !== null;
+  confirmButton.disabled = length !== 4 || !mqttReady() || pending !== null;
 };
 
 const isValidEntry = (value) => {
@@ -179,7 +208,7 @@ pinInput.addEventListener("input", () => {
 
 pinForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (pinInput.value.length !== 4 || pending || !espOnline()) return;
+  if (pinInput.value.length !== 4 || pending || !mqttReady()) return;
 
   if (isValidEntry(pinInput.value)) {
     confirmButton.disabled = true;
@@ -213,11 +242,6 @@ successDialog.addEventListener("click", (event) => {
   if (event.target === successDialog) successDialog.close();
 });
 
-refreshSlots();
+renderControls();
 startMqtt();
-setInterval(() => {
-  if (lastHeartbeat !== null && !espOnline()) {
-    lastHeartbeat = null;
-    renderStatus();
-  }
-}, 500);
+startPresence();

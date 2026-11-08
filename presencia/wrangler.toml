@@ -1,0 +1,12 @@
+name = "parking-presencia"
+main = "worker.mjs"
+compatibility_date = "2026-11-08"
+workers_dev = true
+
+[[durable_objects.bindings]]
+name = "PARKING"
+class_name = "ParkingPresence"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ParkingPresence"]
